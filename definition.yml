@@ -1,6 +1,6 @@
 id: paga_tree
 docker_repository: dynverse/ti_paga_tree
-singularity_collection: -1
+singularity_collection: 1699
 container_url: https://github.com/dynverse/ti_paga_tree
 name: PAGA Tree
 source: adaptation
