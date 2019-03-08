@@ -19,22 +19,35 @@ import dynclipy
 
 #   ____________________________________________________________________________
 #   Load data                                                               ####
-data = h5py.File("/ti/input/data.h5", "r")
-counts = pd.DataFrame(data['counts'][:].T, index = data['counts_rows'][:].astype(np.str), columns = data['counts_cols'][:].astype(np.str))
-start_id = data['start_id'][:].astype(np.str)
-data.close()
+task = dynclipy.main()
+# git clone https://github.com/dynverse/dynclipy.git
+# cd dynclipy
+# pip install git+https://github.com/dynverse/dynclipy.git --upgrade --user
+# R -e "devtools::install_github('dynverse/dynutils@devel', dep = F)"
+# R -e "devtools::install_github('dynverse/dyncli', dep = F)"
+# R -e "devtools::install_github('dynverse/dynwrap@singularity3')"
+# task = dynclipy.main(
+#   ["--dataset", "/code/example.h5", "--output", "/mnt/output"],
+#   "/code/definition.yml"
+# )
 
-params = json.load(open("/ti/input/params.json", "r"))
+counts = task["counts"]
 
-if "groups_id" in data:
-  groups_id = data['groups_id']
+params = task["params"]
+
+start_id = task["priors"]["start_id"]
+if isinstance(start_id, list):
+  start_id = start_id[0]
+
+if "groups_id" in task["priors"]:
+  groups_id = task["priors"]['groups_id']
 else:
   groups_id = None
 
 # create dataset
 if groups_id is not None:
-  obs = groups_id
-  obs["louvain"] = obs.group_id.astyp("category")
+  obs = pd.DataFrame(groups_id)
+  obs["louvain"] = obs["group_id"].astype("category")
   adata = anndata.AnnData(counts.values, obs)
 else:
   adata = anndata.AnnData(counts.values)
@@ -94,15 +107,14 @@ checkpoints["method_aftermethod"] = time.time()
 
 #   ____________________________________________________________________________
 #   Process & save output                                                   ####
+output = {}
+
 # cell ids
-cell_ids = pd.DataFrame({
-  "cell_ids": counts.index
-})
-cell_ids.to_csv("/ti/output/cell_ids.csv", index=False)
+output["cell_ids"] = counts.index
 
 # grouping
 grouping = pd.DataFrame({"cell_id": counts.index, "group_id": adata.obs.louvain})
-grouping.reset_index(drop=True).to_csv("/ti/output/grouping.csv", index=False)
+output["grouping"] = grouping
 
 # milestone network
 milestone_network = pd.DataFrame(
@@ -113,13 +125,13 @@ milestone_network = pd.DataFrame(
 milestone_network.columns = ["from", "to", "length"]
 milestone_network = milestone_network.query("length > 0").reset_index(drop=True)
 milestone_network["directed"] = False
-milestone_network.to_csv("/ti/output/milestone_network.csv", index=False)
+output["milestone_network"] = milestone_network
 
 # dimred
 dimred = pd.DataFrame([x for x in adata.obsm['X_umap'].T]).T
 dimred.columns = ["comp_" + str(i) for i in range(dimred.shape[1])]
 dimred["cell_id"] = counts.index
-dimred.reset_index(drop=True).to_csv("/ti/output/dimred.csv", index=False)
+output["dimred"] = dimred
 
 # branch progressions: the scaled dpt_pseudotime within every cluster
 branch_progressions = adata.obs
@@ -128,7 +140,7 @@ branch_progressions["percentage"] = branch_progressions.groupby("louvain")["dpt_
 branch_progressions["cell_id"] = counts.index
 branch_progressions["branch_id"] = branch_progressions["louvain"].astype(np.str)
 branch_progressions = branch_progressions[["cell_id", "branch_id", "percentage"]]
-branch_progressions.reset_index(drop=True).to_csv("/ti/output/branch_progressions.csv", index=False)
+output["branch_progressions"] = branch_progressions
 
 # branches:
 # - length = difference between max and min dpt_pseudotime within every cluster
@@ -137,7 +149,7 @@ branches = adata.obs.groupby("louvain").apply(lambda x: x["dpt_pseudotime"].max(
 branches.columns = ["branch_id", "length"]
 branches["branch_id"] = branches["branch_id"].astype(np.str)
 branches["directed"] = True
-branches.to_csv("/ti/output/branches.csv", index=False)
+output["branches"] = branches
 
 # branch network: determine order of from and to based on difference in average pseudotime
 branch_network = milestone_network[["from", "to"]]
@@ -147,10 +159,24 @@ for i, (branch_from, branch_to) in enumerate(zip(branch_network["from"], branch_
     branch_network.at[i, "to"] = branch_from
     branch_network.at[i, "from"] = branch_to
 
-branch_network.to_csv("/ti/output/branch_network.csv", index=False)
+output["branch_network"] = branch_network
 
 # timings
 timings = pd.Series(checkpoints)
 timings.index.name = "name"
 timings.name = "timings"
-timings.reset_index().to_csv("/ti/output/timings.csv", index=False)
+output["timings"] = timings
+
+# save
+dataset = dynclipy.wrap_data(cell_ids = counts.index)
+dataset.add_branch_trajectory(
+  grouping = output["grouping"], 
+  milestone_network = output["milestone_network"],
+  branch_progressions = output["branch_progressions"],
+  branches = output["branches"],
+  branch_network = output["branch_network"]
+)
+dataset.add_dimred(
+  dimred = output["dimred"]
+)
+dataset.write_output(task["output"])
