@@ -26,10 +26,10 @@ task = dynclipy.main()
 # R -e "devtools::install_github('dynverse/dynutils@devel', dep = F)"
 # R -e "devtools::install_github('dynverse/dyncli', dep = F)"
 # R -e "devtools::install_github('dynverse/dynwrap@singularity3')"
-# task = dynclipy.main(
-#   ["--dataset", "/code/example.h5", "--output", "/mnt/output"],
-#   "/code/definition.yml"
-# )
+task = dynclipy.main(
+  ["--dataset", "/code/example.h5", "--output", "/mnt/output"],
+  "/code/definition.yml"
+)
 
 counts = task["counts"]
 
@@ -93,7 +93,7 @@ sc.tl.paga(adata)
 sc.pl.paga(adata, threshold=0.01, layout='fr', show=False)
 
 # run dpt for pseudotime information that is overlayed with paga
-adata.uns['iroot'] = np.where(counts.index == start_id[0])[0][0]
+adata.uns['iroot'] = np.where(counts.index == start_id)[0][0]
 sc.tl.dpt(adata, n_dcs = min(adata.obsm.X_diffmap.shape[1], 10))
 
 # run umap for a dimension-reduced embedding, use the positions of the paga
