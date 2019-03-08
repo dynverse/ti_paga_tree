@@ -1,3 +1,5 @@
+#!/usr/local/bin/python
+
 # avoid errors due to no $DISPLAY environment variable available when running sc.pl.paga
 import matplotlib
 matplotlib.use('Agg')
@@ -12,6 +14,8 @@ import anndata
 
 import time
 checkpoints = {}
+
+import dynclipy
 
 #   ____________________________________________________________________________
 #   Load data                                                               ####
