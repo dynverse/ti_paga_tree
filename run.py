@@ -26,10 +26,10 @@ task = dynclipy.main()
 # R -e "devtools::install_github('dynverse/dynutils@devel', dep = F)"
 # R -e "devtools::install_github('dynverse/dyncli', dep = F)"
 # R -e "devtools::install_github('dynverse/dynwrap@singularity3')"
-task = dynclipy.main(
-  ["--dataset", "/code/example.h5", "--output", "/mnt/output"],
-  "/code/definition.yml"
-)
+# task = dynclipy.main(
+#   ["--dataset", "/code/example.h5", "--output", "/mnt/output"],
+#   "/code/definition.yml"
+# )
 
 counts = task["counts"]
 
