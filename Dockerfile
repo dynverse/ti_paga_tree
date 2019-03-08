@@ -1,13 +1,7 @@
-FROM dynverse/dynwrap:py3.6
+FROM dynverse/dynwrapr:v0.1.0
 
-RUN pip install python-igraph louvain # igraph and louvain do not get installed by scanpy
+ARG GITHUB_PAT
 
-RUN pip install scanpy
+COPY definition.yml example.h5 run.R /code/
 
-RUN pip install fa2
-
-LABEL version 0.1.5
-
-ADD . /code
-
-ENTRYPOINT python /code/run.py
+ENTRYPOINT ["/code/run.R"]
