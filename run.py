@@ -20,16 +20,6 @@ import dynclipy
 #   ____________________________________________________________________________
 #   Load data                                                               ####
 task = dynclipy.main()
-# git clone https://github.com/dynverse/dynclipy.git
-# cd dynclipy
-# pip install git+https://github.com/dynverse/dynclipy.git --upgrade --user
-# R -e "devtools::install_github('dynverse/dynutils@devel', dep = F)"
-# R -e "devtools::install_github('dynverse/dyncli', dep = F)"
-# R -e "devtools::install_github('dynverse/dynwrap@singularity3')"
-# task = dynclipy.main(
-#   ["--dataset", "/code/example.h5", "--output", "/mnt/output"],
-#   "/code/definition.yml"
-# )
 
 counts = task["counts"]
 
@@ -107,16 +97,11 @@ checkpoints["method_aftermethod"] = time.time()
 
 #   ____________________________________________________________________________
 #   Process & save output                                                   ####
-output = {}
-
-# cell ids
-output["cell_ids"] = counts.index
 
 # grouping
 grouping = pd.DataFrame({"cell_id": counts.index, "group_id": adata.obs.louvain})
-output["grouping"] = grouping
 
-# milestone network
+# milestone networks
 milestone_network = pd.DataFrame(
   adata.uns["paga"]["connectivities_tree"].todense(),
   index=adata.obs.louvain.cat.categories,
@@ -125,13 +110,11 @@ milestone_network = pd.DataFrame(
 milestone_network.columns = ["from", "to", "length"]
 milestone_network = milestone_network.query("length > 0").reset_index(drop=True)
 milestone_network["directed"] = False
-output["milestone_network"] = milestone_network
 
 # dimred
 dimred = pd.DataFrame([x for x in adata.obsm['X_umap'].T]).T
 dimred.columns = ["comp_" + str(i) for i in range(dimred.shape[1])]
 dimred["cell_id"] = counts.index
-output["dimred"] = dimred
 
 # branch progressions: the scaled dpt_pseudotime within every cluster
 branch_progressions = adata.obs
@@ -140,7 +123,6 @@ branch_progressions["percentage"] = branch_progressions.groupby("louvain")["dpt_
 branch_progressions["cell_id"] = counts.index
 branch_progressions["branch_id"] = branch_progressions["louvain"].astype(np.str)
 branch_progressions = branch_progressions[["cell_id", "branch_id", "percentage"]]
-output["branch_progressions"] = branch_progressions
 
 # branches:
 # - length = difference between max and min dpt_pseudotime within every cluster
@@ -149,7 +131,6 @@ branches = adata.obs.groupby("louvain").apply(lambda x: x["dpt_pseudotime"].max(
 branches.columns = ["branch_id", "length"]
 branches["branch_id"] = branches["branch_id"].astype(np.str)
 branches["directed"] = True
-output["branches"] = branches
 
 # branch network: determine order of from and to based on difference in average pseudotime
 branch_network = milestone_network[["from", "to"]]
@@ -159,24 +140,16 @@ for i, (branch_from, branch_to) in enumerate(zip(branch_network["from"], branch_
     branch_network.at[i, "to"] = branch_from
     branch_network.at[i, "from"] = branch_to
 
-output["branch_network"] = branch_network
-
-# timings
-timings = pd.Series(checkpoints)
-timings.index.name = "name"
-timings.name = "timings"
-output["timings"] = timings
-
 # save
 dataset = dynclipy.wrap_data(cell_ids = counts.index)
 dataset.add_branch_trajectory(
-  grouping = output["grouping"], 
-  milestone_network = output["milestone_network"],
-  branch_progressions = output["branch_progressions"],
-  branches = output["branches"],
-  branch_network = output["branch_network"]
+  grouping = grouping,
+  milestone_network = milestone_network,
+  branch_progressions = branch_progressions,
+  branches = branches,
+  branch_network = branch_network
 )
-dataset.add_dimred(
-  dimred = output["dimred"]
-)
+dataset.add_dimred(dimred = dimred)
+dataset.add_timings(checkpoints)
+
 dataset.write_output(task["output"])
