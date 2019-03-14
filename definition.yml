@@ -40,8 +40,6 @@ manuscript:
   google_scholar_cluster_id: '10470081259069082868'
   preprint_date: '2017-10-27'
 
-
-
 parameters:
 - id: n_neighbors
   description: Number of neighbours for knn
