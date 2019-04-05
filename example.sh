@@ -7,13 +7,13 @@ data <- dyntoy::generate_dataset(
   num_cells = 99,
   num_features = 101,
   model = "tree",
-  normalise = TRUE
+  normalise = FALSE
 )
 
 # add method specific args (if needed)
-data$params <- list()
-data$seed <- 1
+data$parameters <- list()
+data$seed <- 1L
 
 # write example dataset to file
 file <- commandArgs(trailingOnly = TRUE)[[1]]
-dynutils::write_h5(data[c("counts", "expression", "params", "prior_information")], file)
+dynutils::write_h5(data, file)
