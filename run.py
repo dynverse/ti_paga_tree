@@ -11,6 +11,8 @@ import json
 
 import scanpy.api as sc
 import anndata
+import numba
+import warnings
 
 import time
 checkpoints = {}
